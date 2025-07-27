@@ -1,0 +1,211 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NVIDIA GPU Monitor</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        padding: 20px;
+        background-color: #f8f9fa;
+      }
+      .gpu-card {
+        margin-bottom: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+      .card-header {
+        background-color: #343a40;
+        color: white;
+        font-weight: bold;
+      }
+      .progress {
+        height: 25px;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      .progress-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .status-good {
+        color: #28a745;
+      }
+      .status-warning {
+        color: #ffc107;
+      }
+      .status-danger {
+        color: #dc3545;
+      }
+      .timestamp {
+        font-size: 12px;
+        color: #6c757d;
+        text-align: right;
+        margin-top: 10px;
+      }
+      .process-table {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="mb-4">NVIDIA GPU Monitor</h1>
+      <div class="timestamp" id="update-time"></div>
+
+      <div id="gpu-container"></div>
+
+      <div class="card mt-4">
+        <div class="card-header">GPU Processes</div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>PID</th>
+                  <th>Process Name</th>
+                  <th>Memory Used</th>
+                </tr>
+              </thead>
+              <tbody id="process-container">
+                <tr>
+                  <td colspan="4" class="text-center">No processes found</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function updateGPUData() {
+        fetch("/api/gpu-data")
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.error) {
+              console.error(data.error);
+              return;
+            }
+
+            // Update timestamp
+            const date = new Date(data.timestamp * 1000);
+            document.getElementById(
+              "update-time"
+            ).textContent = `Last updated: ${date.toLocaleTimeString()}`;
+
+            // Update GPU data
+            const gpuContainer = document.getElementById("gpu-container");
+            gpuContainer.innerHTML = "";
+
+            data.gpus.forEach((gpu) => {
+              const gpuCard = document.createElement("div");
+              gpuCard.className = "card gpu-card";
+
+              const gpuUtil = parseInt(gpu.gpu_utilization);
+              const memUtil = parseInt(gpu.memory_utilization);
+              const temp = parseInt(gpu.temperature);
+
+              let tempClass = "status-good";
+              if (temp > 80) tempClass = "status-danger";
+              else if (temp > 70) tempClass = "status-warning";
+
+              gpuCard.innerHTML = `
+                            <div class="card-header d-flex justify-content-between">
+                                <span>${gpu.name} [GPU ${gpu.index}]</span>
+                                <span class="${tempClass}">${
+                gpu.temperature
+              }°C</span>
+                            </div>
+                            <div class="card-body">
+                                <h5>GPU Utilization</h5>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar ${
+                                      gpuUtil > 80
+                                        ? "bg-danger"
+                                        : gpuUtil > 50
+                                        ? "bg-warning"
+                                        : "bg-success"
+                                    }" 
+                                         role="progressbar" 
+                                         style="width: ${gpuUtil}%" 
+                                         aria-valuenow="${gpuUtil}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        ${gpuUtil}%
+                                    </div>
+                                </div>
+                                
+                                <h5>Memory Usage</h5>
+                                <div class="progress mb-3">
+                                    <div class="progress-bar ${
+                                      memUtil > 80
+                                        ? "bg-danger"
+                                        : memUtil > 50
+                                        ? "bg-warning"
+                                        : "bg-success"
+                                    }" 
+                                         role="progressbar" 
+                                         style="width: ${memUtil}%" 
+                                         aria-valuenow="${memUtil}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                        ${gpu.memory_used} / ${
+                gpu.memory_total
+              } MB (${memUtil}%)
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col">
+                                        <h5>Power Draw</h5>
+                                        <p>${gpu.power_draw} W</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+
+              gpuContainer.appendChild(gpuCard);
+            });
+
+            // Update process data
+            const processContainer =
+              document.getElementById("process-container");
+            if (
+              data.processes &&
+              data.processes.length > 0 &&
+              data.processes[0] !== ""
+            ) {
+              processContainer.innerHTML = "";
+              data.processes.forEach((process) => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                                <td>${process.pid}</td>
+                                <td>${process.process_name}</td>
+                                <td>${process.used_memory} (est)</td>
+                            `;
+                processContainer.appendChild(row);
+              });
+            } else {
+              processContainer.innerHTML =
+                '<tr><td colspan="4" class="text-center">No processes found</td></tr>';
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching GPU data:", error);
+          });
+      }
+
+      // Update data initially and then every interval
+      updateGPUData();
+      setInterval(updateGPUData, 5000);
+    </script>
+  </body>
+</html>
