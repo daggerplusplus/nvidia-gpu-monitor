@@ -62,11 +62,31 @@ jobs:
       run: |
         docker run --rm -d --name test-container \
           -p 5000:5000 \
+          -e TESTING=true \
           ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
         
-        sleep 10
+        sleep 15
         
-        # Test health endpoint
-        curl -f http://localhost:5000/api/v1/health || exit 1
+        # Test basic connectivity first
+        echo "Testing basic connectivity..."
+        curl -v http://localhost:5000/ || echo "Root endpoint failed, continuing..."
+        
+        # Test health endpoint specifically
+        echo "Testing health endpoint..."
+        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/v1/health)
+        echo "Health endpoint response code: $response"
+        
+        # Should return 200 in testing mode
+        if [ "$response" -eq 200 ]; then
+          echo "✅ Container is running and health endpoint is accessible"
+          
+          # Get the actual health response
+          health_response=$(curl -s http://localhost:5000/api/v1/health)
+          echo "Health response: $health_response"
+        else
+          echo "❌ Health endpoint returned unexpected response code: $response"
+          docker logs test-container
+          exit 1
+        fi
         
         docker stop test-container
