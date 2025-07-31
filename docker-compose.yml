@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  nvidia-gpu-monitor:
+    build: .
+    container_name: nvidia-gpu-monitor
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount nvidia-smi from host (adjust path as needed for your system)
+      - /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro
+      - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
+      # Mount /proc for process information
+      - /proc:/host/proc:ro
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Alternative service using pre-built image from Docker Hub
+  nvidia-gpu-monitor-hub:
+    image: ${DOCKERHUB_USERNAME}/nvidia-gpu-monitor:latest
+    container_name: nvidia-gpu-monitor-hub
+    ports:
+      - "5001:5000"
+    volumes:
+      - /usr/bin/nvidia-smi:/usr/bin/nvidia-smi:ro
+      - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
+      - /proc:/host/proc:ro
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+    profiles:
+      - hub-image
