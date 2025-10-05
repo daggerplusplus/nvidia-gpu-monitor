@@ -32,4 +32,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:5000/api/v1/health || exit 1
 
 # Use gunicorn for production
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "30", "--log-level", "debug", "--capture-output", "--enable-stdio-inheritance", "app:app"]
+# Using --preload to load the application before forking workers
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "30", "--preload", "--log-level", "debug", "--capture-output", "--enable-stdio-inheritance", "app:app"]
