@@ -208,7 +208,11 @@ def get_gpu_processes():
         return []
 
 # Start the background thread
-Thread(target=update_gpu_data, daemon=True).start()
+try:
+    Thread(target=update_gpu_data, daemon=True).start()
+    print("Background GPU monitoring thread started")
+except Exception as e:
+    print(f"Warning: Could not start background thread: {e}")
 
 @app.route('/')
 def index():
