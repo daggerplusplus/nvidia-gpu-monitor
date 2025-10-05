@@ -1,4 +1,7 @@
 # app.py
+import sys
+print(f"[DEBUG] Starting app.py import, Python version: {sys.version}", flush=True)
+
 from flask import Flask, render_template, jsonify
 from flask_cors import CORS
 import subprocess
@@ -7,8 +10,12 @@ from threading import Thread
 import re
 import json
 
+print(f"[DEBUG] All imports successful", flush=True)
+
 app = Flask(__name__)
 CORS(app)
+
+print(f"[DEBUG] Flask app created: {app}", flush=True)
 
 # Store the latest GPU data
 gpu_data = {}
@@ -208,11 +215,14 @@ def get_gpu_processes():
         return []
 
 # Start the background thread
+print(f"[DEBUG] About to start background thread", flush=True)
 try:
     Thread(target=update_gpu_data, daemon=True).start()
-    print("Background GPU monitoring thread started")
+    print("[DEBUG] Background GPU monitoring thread started successfully", flush=True)
 except Exception as e:
-    print(f"Warning: Could not start background thread: {e}")
+    print(f"[DEBUG] Warning: Could not start background thread: {e}", flush=True)
+
+print(f"[DEBUG] Module load complete. App object: {app}", flush=True)
 
 @app.route('/')
 def index():
