@@ -168,7 +168,11 @@ def update_gpu_data():
     """Background thread to continuously update GPU data"""
     global gpu_data
     while True:
-        gpu_data = parse_nvidia_smi()
+        try:
+            gpu_data = parse_nvidia_smi()
+        except Exception as e:
+            print(f"[ERROR] Failed to update GPU data: {e}", flush=True)
+            gpu_data = {'error': str(e)}
         time.sleep(1)  # Update every second
 
 def get_gpu_processes():
