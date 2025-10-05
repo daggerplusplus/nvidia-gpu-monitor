@@ -27,7 +27,7 @@ def parse_nvidia_smi():
         result = subprocess.run(
             ['nvidia-smi', '--query-gpu=index,name,temperature.gpu,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw',
              '--format=csv,noheader,nounits'],
-            capture_output=True, text=True, check=True
+            capture_output=True, text=True, check=True, timeout=5
         )
         
         gpu_list = []
@@ -167,13 +167,22 @@ def parse_nvidia_smi():
 def update_gpu_data():
     """Background thread to continuously update GPU data"""
     global gpu_data
+    consecutive_errors = 0
+
     while True:
         try:
             gpu_data = parse_nvidia_smi()
+            consecutive_errors = 0  # Reset on success
+            time.sleep(1)  # Update every second when working
         except Exception as e:
-            print(f"[ERROR] Failed to update GPU data: {e}", flush=True)
-            gpu_data = {'error': str(e)}
-        time.sleep(1)  # Update every second
+            consecutive_errors += 1
+            error_msg = str(e)
+            print(f"[ERROR] Failed to update GPU data (attempt {consecutive_errors}): {error_msg}", flush=True)
+            gpu_data = {'error': error_msg, 'timestamp': time.time()}
+
+            # Back off on repeated failures to avoid overwhelming the system
+            sleep_time = min(10, consecutive_errors)
+            time.sleep(sleep_time)
 
 def get_gpu_processes():
     """Get processes using GPUs by checking for NVIDIA libraries in process mappings"""
